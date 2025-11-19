@@ -33,8 +33,8 @@ pub fn create_router() -> Router {
     };
 
     Router::new()
-        .route("/", get(health::api_info).layer(rate_limit_layer(limits::health())))
-        .route("/health", get(health::health_check).layer(rate_limit_layer(limits::health())))
+        .route("/", get(health::api_info))
+        .route("/health", get(health::health_check))
         .route("/api/v1/render", post(render::render_ephemeris).layer(rate_limit_layer(limits::render())))
         .route("/api/v1/render/chartspec", post(render::render_chartspec).layer(rate_limit_layer(limits::chartspec())))
         .with_state(state)

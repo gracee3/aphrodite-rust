@@ -32,11 +32,23 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     tracing::info!("Starting Aphrodite API server on {}", addr);
 
+    let listener = tokio::net::TcpListener::bind(addr).await
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to bind to {}: {}", addr, e);
+            eprintln!("Error: {}", e);
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                eprintln!("Port {} is already in use. Please stop the existing server or use a different port.", config.port);
+            }
+            std::process::exit(1);
+        });
+
     tracing::info!("Server listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     axum::serve(listener, app)
         .await
-        .unwrap();
+        .unwrap_or_else(|e| {
+            eprintln!("Server error: {}", e);
+            std::process::exit(1);
+        });
 }
 
