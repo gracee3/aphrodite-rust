@@ -13,11 +13,11 @@ pub struct ChartServicePool {
 
 impl ChartServicePool {
     /// Create a new service pool with the specified number of instances
-    pub fn new(pool_size: usize, ephemeris_path: Option<PathBuf>, cache_size: usize) -> Result<Self, ApiError> {
+    pub fn new(pool_size: usize, ephemeris_path: Option<PathBuf>, cache_size: usize, default_wheel_json_path: Option<String>) -> Result<Self, ApiError> {
         let mut services = Vec::with_capacity(pool_size);
         
         for _ in 0..pool_size {
-            let service = ChartService::new(ephemeris_path.clone(), cache_size)
+            let service = ChartService::new(ephemeris_path.clone(), cache_size, default_wheel_json_path.clone())
                 .map_err(|e| ApiError::InternalError(format!("Failed to create service in pool: {}", e)))?;
             services.push(Arc::new(Mutex::new(service)));
         }

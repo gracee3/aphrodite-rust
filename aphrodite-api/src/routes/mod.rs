@@ -24,6 +24,7 @@ pub fn create_router() -> Router<AppState> {
         config.service_pool_size,
         config.swiss_ephemeris_path.map(std::path::PathBuf::from),
         config.cache_size,
+        config.default_wheel_json_path,
     )
     .expect("Failed to create service pool");
 
@@ -34,8 +35,8 @@ pub fn create_router() -> Router<AppState> {
     Router::new()
         .route("/", get(health::api_info).layer(rate_limit_layer(limits::health())))
         .route("/health", get(health::health_check).layer(rate_limit_layer(limits::health())))
-        .route("/api/render", post(render::render_ephemeris).layer(rate_limit_layer(limits::render())))
-        .route("/api/render/chartspec", post(render::render_chartspec).layer(rate_limit_layer(limits::chartspec())))
+        .route("/api/v1/render", post(render::render_ephemeris).layer(rate_limit_layer(limits::render())))
+        .route("/api/v1/render/chartspec", post(render::render_chartspec).layer(rate_limit_layer(limits::chartspec())))
         .with_state(state)
 }
 

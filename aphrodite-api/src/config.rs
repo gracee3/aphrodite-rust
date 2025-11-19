@@ -10,6 +10,7 @@ pub struct Config {
     pub log_level: String,
     pub service_pool_size: usize,
     pub cache_size: usize,
+    pub default_wheel_json_path: Option<String>,
 }
 
 impl Config {
@@ -36,6 +37,12 @@ impl Config {
                 .unwrap_or_else(|_| "1000".to_string())
                 .parse()
                 .unwrap_or(1000),
+            default_wheel_json_path: env::var("DEFAULT_WHEEL_JSON_PATH")
+                .ok()
+                .or_else(|| {
+                    // Default to wheels/default.json relative to the executable or current directory
+                    Some("wheels/default.json".to_string())
+                }),
         }
     }
 }

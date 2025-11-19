@@ -1,0 +1,33 @@
+{
+  "name": "Standard Natal Wheel",
+  "rings": [
+    {
+      "slug": "ring_signs",
+      "type": "signs",
+      "label": "Zodiac Signs",
+      "orderIndex": 0,
+      "radiusInner": 0.85,
+      "radiusOuter": 1.0,
+      "dataSource": { "kind": "static_zodiac" }
+    },
+    {
+      "slug": "ring_houses",
+      "type": "houses",
+      "label": "Houses",
+      "orderIndex": 1,
+      "radiusInner": 0.75,
+      "radiusOuter": 0.85,
+      "dataSource": { "kind": "layer_houses", "layerId": "natal" }
+    },
+    {
+      "slug": "ring_planets",
+      "type": "planets",
+      "label": "Natal Planets",
+      "orderIndex": 2,
+      "radiusInner": 0.55,
+      "radiusOuter": 0.75,
+      "dataSource": { "kind": "layer_planets", "layerId": "natal" }
+    }
+  ]
+}
+

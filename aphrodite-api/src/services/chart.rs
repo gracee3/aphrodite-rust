@@ -1,5 +1,5 @@
 use crate::error::ApiError;
-use crate::schemas::request::{ChartSettings, LayerConfig, RenderRequest, Subject};
+use crate::schemas::request::{ChartSettings, LayerConfig, RenderRequest, Subject, VedicConfig};
 use crate::schemas::response::{
     EphemerisResponse, HousePositions, LayerPositions, LayerResponse, PlanetPosition,
     VedicPayload, VedicLayerData, NakshatraLayer, WesternLayerData,
@@ -30,22 +30,74 @@ pub struct ChartService {
     adapter: SwissEphemerisAdapter,
     ephemeris_path: Option<PathBuf>,
     cache: Mutex<LruCache<String, EphemerisResponse>>,
+    default_wheel_json: String,
 }
 
 impl ChartService {
     /// Create a new chart service
-    pub fn new(ephemeris_path: Option<PathBuf>, cache_size: usize) -> Result<Self, ApiError> {
+    pub fn new(ephemeris_path: Option<PathBuf>, cache_size: usize, default_wheel_json_path: Option<String>) -> Result<Self, ApiError> {
         let path_for_adapter = ephemeris_path.clone();
         let mut adapter = SwissEphemerisAdapter::new(path_for_adapter)
-            .map_err(|e| ApiError::InternalError(format!("Failed to create adapter: {}", e)))?;
+            .map_err(|e| ApiError::InternalError(format!("Failed to create adapter: {}", e)))?; // Keep manual conversion here as it's a creation error
         let cache = Mutex::new(LruCache::new(
             NonZeroUsize::new(cache_size.max(1)).unwrap()
         ));
+        
+        // Load default wheel JSON from file or use embedded fallback
+        let default_wheel_json = if let Some(path) = default_wheel_json_path {
+            std::fs::read_to_string(&path)
+                .unwrap_or_else(|_| {
+                    // Fallback to embedded default if file not found
+                    Self::embedded_default_wheel_json()
+                })
+        } else {
+            Self::embedded_default_wheel_json()
+        };
+        
         Ok(Self { 
             adapter,
             ephemeris_path,
             cache,
+            default_wheel_json,
         })
+    }
+    
+    /// Get embedded default wheel JSON (fallback)
+    fn embedded_default_wheel_json() -> String {
+        r#"
+        {
+          "name": "Standard Natal Wheel",
+          "rings": [
+            {
+              "slug": "ring_signs",
+              "type": "signs",
+              "label": "Zodiac Signs",
+              "orderIndex": 0,
+              "radiusInner": 0.85,
+              "radiusOuter": 1.0,
+              "dataSource": { "kind": "static_zodiac" }
+            },
+            {
+              "slug": "ring_houses",
+              "type": "houses",
+              "label": "Houses",
+              "orderIndex": 1,
+              "radiusInner": 0.75,
+              "radiusOuter": 0.85,
+              "dataSource": { "kind": "layer_houses", "layerId": "natal" }
+            },
+            {
+              "slug": "ring_planets",
+              "type": "planets",
+              "label": "Natal Planets",
+              "orderIndex": 2,
+              "radiusInner": 0.55,
+              "radiusOuter": 0.75,
+              "dataSource": { "kind": "layer_planets", "layerId": "natal" }
+            }
+          ]
+        }
+        "#.to_string()
     }
 
     /// Generate a cache key from request parameters
@@ -107,6 +159,117 @@ impl ChartService {
         format!("ephemeris:{}", hasher.finish())
     }
 
+    /// Merge settings_override into settings
+    fn merge_settings_override(
+        settings: &mut ChartSettings,
+        settings_override: &HashMap<String, serde_json::Value>,
+    ) -> Result<(), ApiError> {
+        for (key, value) in settings_override {
+            match key.as_str() {
+                "zodiacType" => {
+                    if let Some(zodiac) = value.as_str() {
+                        settings.zodiac_type = zodiac.to_string();
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("zodiacType must be a string, got: {:?}", value)
+                        ));
+                    }
+                }
+                "houseSystem" => {
+                    if let Some(house_system) = value.as_str() {
+                        settings.house_system = house_system.to_string();
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("houseSystem must be a string, got: {:?}", value)
+                        ));
+                    }
+                }
+                "ayanamsa" => {
+                    if value.is_null() {
+                        settings.ayanamsa = None;
+                    } else if let Some(ayanamsa) = value.as_str() {
+                        settings.ayanamsa = Some(ayanamsa.to_string());
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("ayanamsa must be a string or null, got: {:?}", value)
+                        ));
+                    }
+                }
+                "orbSettings" => {
+                    if let Some(obj) = value.as_object() {
+                        if let Some(v) = obj.get("conjunction") {
+                            if let Some(f) = v.as_f64() {
+                                settings.orb_settings.conjunction = f;
+                            }
+                        }
+                        if let Some(v) = obj.get("opposition") {
+                            if let Some(f) = v.as_f64() {
+                                settings.orb_settings.opposition = f;
+                            }
+                        }
+                        if let Some(v) = obj.get("trine") {
+                            if let Some(f) = v.as_f64() {
+                                settings.orb_settings.trine = f;
+                            }
+                        }
+                        if let Some(v) = obj.get("square") {
+                            if let Some(f) = v.as_f64() {
+                                settings.orb_settings.square = f;
+                            }
+                        }
+                        if let Some(v) = obj.get("sextile") {
+                            if let Some(f) = v.as_f64() {
+                                settings.orb_settings.sextile = f;
+                            }
+                        }
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("orbSettings must be an object, got: {:?}", value)
+                        ));
+                    }
+                }
+                "includeObjects" => {
+                    if let Some(arr) = value.as_array() {
+                        settings.include_objects = arr
+                            .iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("includeObjects must be an array, got: {:?}", value)
+                        ));
+                    }
+                }
+                "vedicConfig" => {
+                    if value.is_null() {
+                        settings.vedic_config = None;
+                    } else if let Some(obj) = value.as_object() {
+                        // Deserialize vedic config from JSON value
+                        match serde_json::from_value::<VedicConfig>(value.clone()) {
+                            Ok(vedic_config) => {
+                                settings.vedic_config = Some(vedic_config);
+                            }
+                            Err(e) => {
+                                return Err(ApiError::ValidationError(
+                                    format!("Invalid vedicConfig: {}", e)
+                                ));
+                            }
+                        }
+                    } else {
+                        return Err(ApiError::ValidationError(
+                            format!("vedicConfig must be an object or null, got: {:?}", value)
+                        ));
+                    }
+                }
+                _ => {
+                    // Unknown key - ignore or return error?
+                    // For now, we'll ignore unknown keys to allow future extensions
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Get ephemeris positions for a render request
     pub async fn get_positions(
         &mut self,
@@ -114,15 +277,7 @@ impl ChartService {
     ) -> Result<EphemerisResponse, ApiError> {
         // Merge settings
         let mut settings = request.settings.clone();
-        for (key, value) in &request.settings_override {
-            // Simple merge - in production, use a proper merge strategy
-            if key == "zodiacType" {
-                if let Some(zodiac) = value.as_str() {
-                    settings.zodiac_type = zodiac.to_string();
-                }
-            }
-            // Add more field merges as needed
-        }
+        self.merge_settings_override(&mut settings, &request.settings_override)?;
 
         // Check cache
         let cache_key = self.generate_cache_key(request, &settings);
@@ -141,12 +296,11 @@ impl ChartService {
         let ephemeris_path = self.ephemeris_path.clone();
         let positions_by_layer = tokio::task::spawn_blocking(move || {
             let mut temp_adapter = SwissEphemerisAdapter::new(Some(ephemeris_path))
-                .map_err(|e| ApiError::InternalError(format!("Failed to create temp adapter: {}", e)))?;
+                .map_err(|e| ApiError::InternalError(format!("Failed to create temp adapter: {}", e)))?; // Keep manual conversion here
             let mut positions_by_layer = HashMap::new();
             for ctx in &layer_contexts_clone {
                 let positions = temp_adapter
-                    .calc_positions(ctx.datetime, ctx.location.clone(), &ctx.settings)
-                    .map_err(|e| ApiError::CalculationError(format!("Failed to calculate positions: {}", e)))?;
+                    .calc_positions(ctx.datetime, ctx.location.clone(), &ctx.settings)?; // Use From trait
                 positions_by_layer.insert(ctx.layer_id.clone(), positions);
             }
             Ok::<HashMap<String, aphrodite_core::ephemeris::LayerPositions>, ApiError>(positions_by_layer)
@@ -296,44 +450,10 @@ impl ChartService {
         let aspect_sets = calculator.compute_all_aspect_sets(&positions_by_layer, &aspect_settings);
 
         // Load wheel definition
-        // For now, use a simple default wheel JSON
-        let default_wheel_json = wheel_json.unwrap_or(r#"
-        {
-          "name": "Standard Natal Wheel",
-          "rings": [
-            {
-              "slug": "ring_signs",
-              "type": "signs",
-              "label": "Zodiac Signs",
-              "orderIndex": 0,
-              "radiusInner": 0.85,
-              "radiusOuter": 1.0,
-              "dataSource": { "kind": "static_zodiac" }
-            },
-            {
-              "slug": "ring_houses",
-              "type": "houses",
-              "label": "Houses",
-              "orderIndex": 1,
-              "radiusInner": 0.75,
-              "radiusOuter": 0.85,
-              "dataSource": { "kind": "layer_houses", "layerId": "natal" }
-            },
-            {
-              "slug": "ring_planets",
-              "type": "planets",
-              "label": "Natal Planets",
-              "orderIndex": 2,
-              "radiusInner": 0.55,
-              "radiusOuter": 0.75,
-              "dataSource": { "kind": "layer_planets", "layerId": "natal" }
-            }
-          ]
-        }
-        "#);
+        // Use provided wheel_json, or fall back to configured default
+        let wheel_json_str = wheel_json.unwrap_or(&self.default_wheel_json);
 
-        let wheel_def_with_presets = load_wheel_definition_from_json(default_wheel_json)
-            .map_err(|e| ApiError::ValidationError(format!("Invalid wheel definition: {}", e)))?;
+        let wheel_def_with_presets = load_wheel_definition_from_json(wheel_json_str)?; // Use From trait
 
         // Assemble wheel
         let wheel = WheelAssembler::build_wheel(
