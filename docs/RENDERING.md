@@ -106,7 +106,7 @@ const canvas = document.getElementById('chart-canvas');
 const ctx = canvas.getContext('2d');
 
 // Fetch ChartSpec from API
-const response = await fetch('/api/render/chartspec', {...});
+const response = await fetch('/api/v1/render/chartspec', {...});
 const data = await response.json();
 
 // Create renderer and render

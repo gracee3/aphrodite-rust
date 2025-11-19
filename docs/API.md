@@ -43,7 +43,7 @@ Returns API information.
 
 ### Render Ephemeris
 
-#### `POST /api/render`
+#### `POST /api/v1/render`
 
 Calculate ephemeris positions for a chart.
 
@@ -128,7 +128,7 @@ Calculate ephemeris positions for a chart.
 
 ### Render ChartSpec
 
-#### `POST /api/render/chartspec`
+#### `POST /api/v1/render/chartspec`
 
 Generate a complete ChartSpec for rendering.
 
