@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Element {
     Fire,
@@ -20,20 +20,23 @@ pub struct SignMeta {
     pub element: Element,
 }
 
-const SIGNS: &[SignMeta] = &[
-    SignMeta { name: "aries".to_string(), ruler: "mars".to_string(), element: Element::Fire },
-    SignMeta { name: "taurus".to_string(), ruler: "venus".to_string(), element: Element::Earth },
-    SignMeta { name: "gemini".to_string(), ruler: "mercury".to_string(), element: Element::Air },
-    SignMeta { name: "cancer".to_string(), ruler: "moon".to_string(), element: Element::Water },
-    SignMeta { name: "leo".to_string(), ruler: "sun".to_string(), element: Element::Fire },
-    SignMeta { name: "virgo".to_string(), ruler: "mercury".to_string(), element: Element::Earth },
-    SignMeta { name: "libra".to_string(), ruler: "venus".to_string(), element: Element::Air },
-    SignMeta { name: "scorpio".to_string(), ruler: "mars".to_string(), element: Element::Water },
-    SignMeta { name: "sagittarius".to_string(), ruler: "jupiter".to_string(), element: Element::Fire },
-    SignMeta { name: "capricorn".to_string(), ruler: "saturn".to_string(), element: Element::Earth },
-    SignMeta { name: "aquarius".to_string(), ruler: "saturn".to_string(), element: Element::Air },
-    SignMeta { name: "pisces".to_string(), ruler: "jupiter".to_string(), element: Element::Water },
-];
+// Use lazy_static for SIGNS since we can't call to_string() in const context
+lazy_static::lazy_static! {
+    static ref SIGNS: Vec<SignMeta> = vec![
+        SignMeta { name: "aries".to_string(), ruler: "mars".to_string(), element: Element::Fire },
+        SignMeta { name: "taurus".to_string(), ruler: "venus".to_string(), element: Element::Earth },
+        SignMeta { name: "gemini".to_string(), ruler: "mercury".to_string(), element: Element::Air },
+        SignMeta { name: "cancer".to_string(), ruler: "moon".to_string(), element: Element::Water },
+        SignMeta { name: "leo".to_string(), ruler: "sun".to_string(), element: Element::Fire },
+        SignMeta { name: "virgo".to_string(), ruler: "mercury".to_string(), element: Element::Earth },
+        SignMeta { name: "libra".to_string(), ruler: "venus".to_string(), element: Element::Air },
+        SignMeta { name: "scorpio".to_string(), ruler: "mars".to_string(), element: Element::Water },
+        SignMeta { name: "sagittarius".to_string(), ruler: "jupiter".to_string(), element: Element::Fire },
+        SignMeta { name: "capricorn".to_string(), ruler: "saturn".to_string(), element: Element::Earth },
+        SignMeta { name: "aquarius".to_string(), ruler: "saturn".to_string(), element: Element::Air },
+        SignMeta { name: "pisces".to_string(), ruler: "jupiter".to_string(), element: Element::Water },
+    ];
+}
 
 const SIGN_ORDER: &[&str] = &[
     "aries", "taurus", "gemini", "cancer",
@@ -43,10 +46,10 @@ const SIGN_ORDER: &[&str] = &[
 
 // Build element groups
 lazy_static::lazy_static! {
-    static ref ELEMENT_GROUPS: std::collections::HashMap<Element, Vec<&'static SignMeta>> = {
-        let mut groups: std::collections::HashMap<Element, Vec<&'static SignMeta>> = std::collections::HashMap::new();
-        for sign in SIGNS {
-            groups.entry(sign.element).or_insert_with(Vec::new).push(sign);
+    static ref ELEMENT_GROUPS: std::collections::HashMap<Element, Vec<SignMeta>> = {
+        let mut groups: std::collections::HashMap<Element, Vec<SignMeta>> = std::collections::HashMap::new();
+        for sign in SIGNS.iter() {
+            groups.entry(sign.element).or_insert_with(Vec::new).push(sign.clone());
         }
         // Sort by zodiac order
         for group in groups.values_mut() {
