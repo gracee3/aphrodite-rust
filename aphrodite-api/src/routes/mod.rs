@@ -35,8 +35,12 @@ pub fn create_router() -> Router {
     Router::new()
         .route("/", get(health::api_info))
         .route("/health", get(health::health_check))
+        // API v1 routes
         .route("/api/v1/render", post(render::render_ephemeris).layer(rate_limit_layer(limits::render())))
         .route("/api/v1/render/chartspec", post(render::render_chartspec).layer(rate_limit_layer(limits::chartspec())))
+        // Legacy/alias routes (without rate limiting to avoid key extraction issues)
+        .route("/api/render", post(render::render_ephemeris))
+        .route("/api/render/chartspec", post(render::render_chartspec))
         .with_state(state)
 }
 
