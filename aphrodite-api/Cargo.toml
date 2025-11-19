@@ -1,0 +1,12 @@
+[package]
+name = "aphrodite-api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+aphrodite-core = { path = "../aphrodite-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
