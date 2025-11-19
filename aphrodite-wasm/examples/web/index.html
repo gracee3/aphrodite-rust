@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aphrodite WASM Chart Renderer</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        #chart-container {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Aphrodite WASM Chart Renderer</h1>
+    <div id="chart-container">
+        <canvas id="chart-canvas" width="800" height="800"></canvas>
+    </div>
+    <button id="load-chart">Load Chart</button>
+    
+    <script type="module">
+        import init, { ChartRenderer } from './pkg/aphrodite_wasm.js';
+        
+        async function run() {
+            await init();
+            
+            const canvas = document.getElementById('chart-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('load-chart').addEventListener('click', async () => {
+                try {
+                    // Fetch ChartSpec from API (example)
+                    const response = await fetch('http://localhost:8000/api/render/chartspec', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subjects: [{
+                                id: "subject1",
+                                label: "Test Subject",
+                                birthDateTime: "1990-01-01T12:00:00Z",
+                                location: { lat: 40.7128, lon: -74.0060 }
+                            }],
+                            settings: {
+                                zodiacType: "tropical",
+                                houseSystem: "placidus",
+                                includeObjects: ["sun", "moon", "mercury", "venus", "mars"]
+                            },
+                            layer_config: {
+                                natal: {
+                                    kind: "natal",
+                                    subjectId: "subject1"
+                                }
+                            }
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    const specJson = JSON.stringify(data.spec);
+                    
+                    // Create renderer and render
+                    const renderer = new ChartRenderer(specJson);
+                    renderer.render_to_canvas(ctx);
+                } catch (error) {
+                    console.error('Error loading chart:', error);
+                }
+            });
+        }
+        
+        run();
+    </script>
+</body>
+</html>
+

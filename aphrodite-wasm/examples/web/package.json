@@ -1,0 +1,13 @@
+{
+  "name": "aphrodite-wasm-example",
+  "version": "0.1.0",
+  "description": "Example web integration for Aphrodite WASM renderer",
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg",
+    "serve": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "wasm-pack": "^0.12.0"
+  }
+}
+
