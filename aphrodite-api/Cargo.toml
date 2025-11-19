@@ -25,6 +25,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+lru = "0.12"
 
 [dev-dependencies]
 tokio-test = "0.4"

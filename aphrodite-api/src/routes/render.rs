@@ -9,7 +9,8 @@ pub async fn render_ephemeris(
     State(state): State<AppState>,
     Json(request): Json<RenderRequest>,
 ) -> Result<Json<EphemerisResponse>, ApiError> {
-    let mut service = state.chart_service.lock().await;
+    let service = state.service_pool.get_service();
+    let mut service = service.lock().await;
     let response = service.get_positions(&request).await?;
     Ok(Json(response))
 }
@@ -19,11 +20,9 @@ pub async fn render_chartspec(
     State(state): State<AppState>,
     Json(request): Json<RenderRequest>,
 ) -> Result<Json<ChartSpecResponse>, ApiError> {
-    let mut service = state.chart_service.lock().await;
-    let spec = service.get_chartspec(&request, None).await?;
-    
-    // Also get ephemeris response for backward compatibility
-    let ephemeris = service.get_positions(&request).await?;
+    let service = state.service_pool.get_service();
+    let mut service = service.lock().await;
+    let (spec, ephemeris) = service.get_chartspec(&request, None).await?;
     
     Ok(Json(ChartSpecResponse {
         spec,

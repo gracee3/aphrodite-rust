@@ -8,6 +8,8 @@ pub struct Config {
     pub cors_origins: Vec<String>,
     pub swiss_ephemeris_path: Option<String>,
     pub log_level: String,
+    pub service_pool_size: usize,
+    pub cache_size: usize,
 }
 
 impl Config {
@@ -26,6 +28,14 @@ impl Config {
                 .collect(),
             swiss_ephemeris_path: env::var("SWISS_EPHEMERIS_PATH").ok(),
             log_level: env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
+            service_pool_size: env::var("SERVICE_POOL_SIZE")
+                .unwrap_or_else(|_| "4".to_string())
+                .parse()
+                .unwrap_or(4),
+            cache_size: env::var("CACHE_SIZE")
+                .unwrap_or_else(|_| "1000".to_string())
+                .parse()
+                .unwrap_or(1000),
         }
     }
 }

@@ -3,9 +3,9 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
-use crate::services::ChartService;
+use crate::middleware::rate_limit::{rate_limit_layer, limits};
+use crate::services::ChartServicePool;
 
 mod health;
 mod render;
@@ -13,27 +13,29 @@ mod render;
 /// Application state
 #[derive(Clone)]
 pub struct AppState {
-    pub chart_service: Arc<Mutex<ChartService>>,
+    pub service_pool: Arc<ChartServicePool>,
 }
 
 /// Create the main router
 pub fn create_router() -> Router<AppState> {
-    // Initialize chart service
+    // Initialize service pool
     let config = crate::config::Config::from_env();
-    let chart_service = ChartService::new(
+    let service_pool = ChartServicePool::new(
+        config.service_pool_size,
         config.swiss_ephemeris_path.map(std::path::PathBuf::from),
+        config.cache_size,
     )
-    .expect("Failed to create chart service");
+    .expect("Failed to create service pool");
 
     let state = AppState {
-        chart_service: Arc::new(Mutex::new(chart_service)),
+        service_pool: Arc::new(service_pool),
     };
 
     Router::new()
-        .route("/", get(health::api_info))
-        .route("/health", get(health::health_check))
-        .route("/api/render", post(render::render_ephemeris))
-        .route("/api/render/chartspec", post(render::render_chartspec))
+        .route("/", get(health::api_info).layer(rate_limit_layer(limits::health())))
+        .route("/health", get(health::health_check).layer(rate_limit_layer(limits::health())))
+        .route("/api/render", post(render::render_ephemeris).layer(rate_limit_layer(limits::render())))
+        .route("/api/render/chartspec", post(render::render_chartspec).layer(rate_limit_layer(limits::chartspec())))
         .with_state(state)
 }
 

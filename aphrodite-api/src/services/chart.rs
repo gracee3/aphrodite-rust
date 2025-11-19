@@ -19,20 +19,92 @@ use aphrodite_core::western::{
     DignitiesService, get_decan_info_from_longitude,
 };
 use chrono::{DateTime, Utc};
+use lru::LruCache;
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 /// Chart calculation service
 pub struct ChartService {
     adapter: SwissEphemerisAdapter,
+    ephemeris_path: Option<PathBuf>,
+    cache: Mutex<LruCache<String, EphemerisResponse>>,
 }
 
 impl ChartService {
     /// Create a new chart service
-    pub fn new(ephemeris_path: Option<PathBuf>) -> Result<Self, ApiError> {
-        let mut adapter = SwissEphemerisAdapter::new(ephemeris_path)
+    pub fn new(ephemeris_path: Option<PathBuf>, cache_size: usize) -> Result<Self, ApiError> {
+        let path_for_adapter = ephemeris_path.clone();
+        let mut adapter = SwissEphemerisAdapter::new(path_for_adapter)
             .map_err(|e| ApiError::InternalError(format!("Failed to create adapter: {}", e)))?;
-        Ok(Self { adapter })
+        let cache = Mutex::new(LruCache::new(
+            NonZeroUsize::new(cache_size.max(1)).unwrap()
+        ));
+        Ok(Self { 
+            adapter,
+            ephemeris_path,
+            cache,
+        })
+    }
+
+    /// Generate a cache key from request parameters
+    fn generate_cache_key(&self, request: &RenderRequest, settings: &ChartSettings) -> String {
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        
+        let mut hasher = DefaultHasher::new();
+        
+        // Hash subjects
+        for subject in &request.subjects {
+            subject.id.hash(&mut hasher);
+            if let Some(dt) = &subject.birth_date_time {
+                dt.to_rfc3339().hash(&mut hasher);
+            }
+            if let Some(loc) = &subject.location {
+                loc.lat.to_bits().hash(&mut hasher);
+                loc.lon.to_bits().hash(&mut hasher);
+            }
+        }
+        
+        // Hash layer config
+        for (key, value) in &request.layer_config {
+            key.hash(&mut hasher);
+            value.kind.hash(&mut hasher);
+            if let Some(subject_id) = &value.subject_id {
+                subject_id.hash(&mut hasher);
+            }
+            if let Some(dt) = &value.explicit_date_time {
+                dt.hash(&mut hasher);
+            }
+            if let Some(loc) = &value.location {
+                loc.lat.to_bits().hash(&mut hasher);
+                loc.lon.to_bits().hash(&mut hasher);
+            }
+        }
+        
+        // Hash settings
+        settings.zodiac_type.hash(&mut hasher);
+        settings.house_system.hash(&mut hasher);
+        if let Some(ayanamsa) = &settings.ayanamsa {
+            ayanamsa.hash(&mut hasher);
+        }
+        settings.include_objects.hash(&mut hasher);
+        
+        // Hash settings_override (merged settings)
+        for (key, value) in &request.settings_override {
+            key.hash(&mut hasher);
+            // Hash the JSON value as string for simplicity
+            if let Some(s) = value.as_str() {
+                s.hash(&mut hasher);
+            } else if let Some(n) = value.as_f64() {
+                n.to_bits().hash(&mut hasher);
+            } else if let Some(b) = value.as_bool() {
+                b.hash(&mut hasher);
+            }
+        }
+        
+        format!("ephemeris:{}", hasher.finish())
     }
 
     /// Get ephemeris positions for a render request
@@ -52,18 +124,35 @@ impl ChartService {
             // Add more field merges as needed
         }
 
+        // Check cache
+        let cache_key = self.generate_cache_key(request, &settings);
+        if let Ok(mut cache) = self.cache.lock() {
+            if let Some(cached_response) = cache.get(&cache_key) {
+                return Ok(cached_response.clone());
+            }
+        }
+
         // Resolve layer contexts
         let layer_contexts = self.resolve_layer_contexts(&request.subjects, &request.layer_config, &settings)?;
 
-        // Calculate positions
-        let mut positions_by_layer = HashMap::new();
-        for ctx in &layer_contexts {
-            let positions = self
-                .adapter
-                .calc_positions(ctx.datetime, ctx.location.clone(), &ctx.settings)
-                .map_err(|e| ApiError::CalculationError(format!("Failed to calculate positions: {}", e)))?;
-            positions_by_layer.insert(ctx.layer_id.clone(), positions);
-        }
+        // Calculate positions - wrap CPU-bound work in spawn_blocking
+        // Create a temporary adapter in the blocking task to avoid moving &mut self.adapter
+        let layer_contexts_clone = layer_contexts.clone();
+        let ephemeris_path = self.ephemeris_path.clone();
+        let positions_by_layer = tokio::task::spawn_blocking(move || {
+            let mut temp_adapter = SwissEphemerisAdapter::new(Some(ephemeris_path))
+                .map_err(|e| ApiError::InternalError(format!("Failed to create temp adapter: {}", e)))?;
+            let mut positions_by_layer = HashMap::new();
+            for ctx in &layer_contexts_clone {
+                let positions = temp_adapter
+                    .calc_positions(ctx.datetime, ctx.location.clone(), &ctx.settings)
+                    .map_err(|e| ApiError::CalculationError(format!("Failed to calculate positions: {}", e)))?;
+                positions_by_layer.insert(ctx.layer_id.clone(), positions);
+            }
+            Ok::<HashMap<String, aphrodite_core::ephemeris::LayerPositions>, ApiError>(positions_by_layer)
+        })
+        .await
+        .map_err(|e| ApiError::InternalError(format!("Task join error: {}", e)))??;
 
         // Build response
         let mut layers_response = HashMap::new();
@@ -125,20 +214,28 @@ impl ChartService {
         // Calculate Western data (dignities and decans)
         let western = self.calculate_western_data(&positions_by_layer)?;
 
-        Ok(EphemerisResponse {
+        let response = EphemerisResponse {
             layers: layers_response,
             settings: settings.clone(),
             vedic,
             western: if western.is_empty() { None } else { Some(western) },
-        })
+        };
+
+        // Insert into cache
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.put(cache_key, response.clone());
+        }
+
+        Ok(response)
     }
 
     /// Get ChartSpec for a render request
+    /// Returns both the ChartSpec and the EphemerisResponse to avoid duplicate calculations
     pub async fn get_chartspec(
         &mut self,
         request: &RenderRequest,
         wheel_json: Option<&str>,
-    ) -> Result<aphrodite_core::rendering::ChartSpec, ApiError> {
+    ) -> Result<(aphrodite_core::rendering::ChartSpec, EphemerisResponse), ApiError> {
         // Get ephemeris positions first
         let ephemeris_response = self.get_positions(request).await?;
 
@@ -254,7 +351,7 @@ impl ChartService {
         let generator = ChartSpecGenerator::new();
         let spec = generator.generate(&wheel, &aspect_sets, 800.0, 800.0);
 
-        Ok(spec)
+        Ok((spec, ephemeris_response))
     }
 
     /// Calculate Vedic data (nakshatras, vargas, yogas, dashas)

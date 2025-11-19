@@ -25,7 +25,7 @@ pub fn rate_limit_layer(config: RateLimitConfig) -> Governor<GovernorConfigBuild
     let quota = Quota::per_minute(NonZeroU32::new(config.requests_per_minute).unwrap());
     let governor_conf = Box::new(
         GovernorConfigBuilder::default()
-            .per_second(quota)
+            .per_minute(quota)
             .finish()
             .unwrap(),
     );
