@@ -1,4 +1,6 @@
 use aphrodite_core::rendering::ChartSpec;
+use aphrodite_core::vedic::{VedicPayload, NakshatraPlacement, VargaLayer, DashaPeriod, Yoga};
+use aphrodite_core::western::{DignityResult, DecanInfo, WesternLayerData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -51,7 +53,9 @@ pub struct EphemerisResponse {
     pub layers: HashMap<String, LayerResponse>,
     pub settings: crate::schemas::request::ChartSettings,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub vedic: Option<serde_json::Value>, // Placeholder for Phase 6
+    pub vedic: Option<VedicPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub western: Option<HashMap<String, WesternLayerData>>,
 }
 
 /// ChartSpec response - complete chart specification
@@ -75,4 +79,15 @@ pub struct ApiInfoResponse {
     pub version: String,
     pub description: String,
 }
+
+// Re-export Vedic types for convenience
+pub use aphrodite_core::vedic::{
+    VedicPayload, NakshatraPlacement, VargaLayer, DashaPeriod, Yoga,
+    VedicLayerData, NakshatraLayer,
+};
+
+// Re-export Western types for convenience
+pub use aphrodite_core::western::{
+    DignityResult, DignityType, ExactExaltation, DecanInfo, WesternLayerData,
+};
 

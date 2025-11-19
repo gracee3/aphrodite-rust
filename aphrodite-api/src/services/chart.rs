@@ -2,6 +2,7 @@ use crate::error::ApiError;
 use crate::schemas::request::{ChartSettings, LayerConfig, RenderRequest, Subject};
 use crate::schemas::response::{
     EphemerisResponse, HousePositions, LayerPositions, LayerResponse, PlanetPosition,
+    VedicPayload, VedicLayerData, NakshatraLayer, WesternLayerData,
 };
 use aphrodite_core::aspects::{AspectCalculator, AspectSettings};
 use aphrodite_core::ephemeris::{
@@ -9,6 +10,14 @@ use aphrodite_core::ephemeris::{
 };
 use aphrodite_core::layout::{load_wheel_definition_from_json, WheelAssembler};
 use aphrodite_core::rendering::ChartSpecGenerator;
+use aphrodite_core::vedic::{
+    annotate_layer_nakshatras, build_varga_layers, identify_yogas,
+    compute_vimshottari_dasha, compute_yogini_dasha, compute_ashtottari_dasha, compute_kalachakra_dasha,
+    DashaLevel, VimshottariResponse,
+};
+use aphrodite_core::western::{
+    DignitiesService, get_decan_info_from_longitude,
+};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -102,10 +111,25 @@ impl ChartService {
             }
         }
 
+        // Calculate Vedic data if requested
+        let vedic = if let Some(vedic_config) = &settings.vedic_config {
+            Some(self.calculate_vedic_data(
+                &positions_by_layer,
+                &layer_contexts,
+                vedic_config,
+            )?)
+        } else {
+            None
+        };
+
+        // Calculate Western data (dignities and decans)
+        let western = self.calculate_western_data(&positions_by_layer)?;
+
         Ok(EphemerisResponse {
             layers: layers_response,
             settings: settings.clone(),
-            vedic: None, // Phase 6
+            vedic,
+            western: if western.is_empty() { None } else { Some(western) },
         })
     }
 
@@ -231,6 +255,149 @@ impl ChartService {
         let spec = generator.generate(&wheel, &aspect_sets, 800.0, 800.0);
 
         Ok(spec)
+    }
+
+    /// Calculate Vedic data (nakshatras, vargas, yogas, dashas)
+    fn calculate_vedic_data(
+        &self,
+        positions_by_layer: &HashMap<String, aphrodite_core::ephemeris::LayerPositions>,
+        layer_contexts: &[LayerContext],
+        vedic_config: &crate::schemas::request::VedicConfig,
+    ) -> Result<VedicPayload, ApiError> {
+        let mut vedic_layers: HashMap<String, VedicLayerData> = HashMap::new();
+
+        for ctx in layer_contexts {
+            if let Some(positions) = positions_by_layer.get(&ctx.layer_id) {
+                let mut layer_data = VedicLayerData {
+                    layer_id: ctx.layer_id.clone(),
+                    nakshatras: None,
+                    vargas: HashMap::new(),
+                    yogas: vec![],
+                };
+
+                // Calculate nakshatras if requested
+                if vedic_config.include_nakshatras {
+                    let placements = annotate_layer_nakshatras(
+                        positions,
+                        vedic_config.include_angles_in_nakshatra,
+                        vedic_config.nakshatra_objects.as_ref(),
+                    );
+                    layer_data.nakshatras = Some(NakshatraLayer {
+                        layer_id: ctx.layer_id.clone(),
+                        placements,
+                    });
+                }
+
+                // Calculate vargas if requested
+                if !vedic_config.vargas.is_empty() {
+                    let varga_layers = build_varga_layers(
+                        &ctx.layer_id,
+                        positions,
+                        &vedic_config.vargas,
+                    );
+                    layer_data.vargas = varga_layers;
+                }
+
+                // Calculate yogas if requested
+                if vedic_config.include_yogas {
+                    layer_data.yogas = identify_yogas(positions);
+                }
+
+                vedic_layers.insert(ctx.layer_id.clone(), layer_data);
+            }
+        }
+
+        // Calculate dashas if requested
+        let dashas = if vedic_config.include_dashas && !vedic_config.dasha_systems.is_empty() {
+            // Find natal layer for dasha calculation
+            let natal_layer = layer_contexts.iter()
+                .find(|ctx| ctx.kind == "natal")
+                .and_then(|ctx| positions_by_layer.get(&ctx.layer_id));
+
+            if let Some(natal_positions) = natal_layer {
+                let natal_context = layer_contexts.iter()
+                    .find(|ctx| ctx.kind == "natal")
+                    .ok_or_else(|| ApiError::ValidationError("Natal layer required for dasha calculation".to_string()))?;
+
+                let depth = match vedic_config.dashas_depth.as_str() {
+                    "mahadasha" => DashaLevel::Mahadasha,
+                    "antardasha" => DashaLevel::Antardasha,
+                    "pratyantardasha" => DashaLevel::Pratyantardasha,
+                    _ => DashaLevel::Pratyantardasha,
+                };
+
+                // Calculate first requested dasha system
+                let dasha_system = vedic_config.dasha_systems.first()
+                    .ok_or_else(|| ApiError::ValidationError("No dasha system specified".to_string()))?;
+
+                let periods = match dasha_system.as_str() {
+                    "vimshottari" => compute_vimshottari_dasha(natal_context.datetime, natal_positions, depth)
+                        .map_err(|e| ApiError::CalculationError(format!("Vimshottari dasha error: {}", e)))?,
+                    "yogini" => compute_yogini_dasha(natal_context.datetime, natal_positions, depth)
+                        .map_err(|e| ApiError::CalculationError(format!("Yogini dasha error: {}", e)))?,
+                    "ashtottari" => compute_ashtottari_dasha(natal_context.datetime, natal_positions, depth)
+                        .map_err(|e| ApiError::CalculationError(format!("Ashtottari dasha error: {}", e)))?,
+                    "kalachakra" => compute_kalachakra_dasha(natal_context.datetime, natal_positions, depth)
+                        .map_err(|e| ApiError::CalculationError(format!("Kalachakra dasha error: {}", e)))?,
+                    _ => return Err(ApiError::ValidationError(format!("Unknown dasha system: {}", dasha_system))),
+                };
+
+                Some(VimshottariResponse {
+                    system: dasha_system.clone(),
+                    depth,
+                    birth_date_time: natal_context.datetime,
+                    periods,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(VedicPayload {
+            layers: vedic_layers,
+            dashas,
+        })
+    }
+
+    /// Calculate Western data (dignities and decans)
+    fn calculate_western_data(
+        &self,
+        positions_by_layer: &HashMap<String, aphrodite_core::ephemeris::LayerPositions>,
+    ) -> Result<HashMap<String, WesternLayerData>, ApiError> {
+        let mut western_layers: HashMap<String, WesternLayerData> = HashMap::new();
+        let dignities_service = DignitiesService;
+        let default_exact_exaltations = dignities_service.get_default_exact_exaltations();
+
+        for (layer_id, positions) in positions_by_layer {
+            let mut dignities: HashMap<String, Vec<aphrodite_core::western::DignityResult>> = HashMap::new();
+            let mut decans: HashMap<String, aphrodite_core::western::DecanInfo> = HashMap::new();
+
+            // Calculate dignities for all planets
+            for (planet_id, planet_pos) in &positions.planets {
+                let planet_dignities = dignities_service.get_dignities(
+                    planet_id,
+                    planet_pos.lon,
+                    Some(&default_exact_exaltations),
+                );
+                if !planet_dignities.is_empty() {
+                    dignities.insert(planet_id.clone(), planet_dignities);
+                }
+
+                // Calculate decan info
+                let decan_info = get_decan_info_from_longitude(planet_pos.lon);
+                decans.insert(planet_id.clone(), decan_info);
+            }
+
+            western_layers.insert(layer_id.clone(), WesternLayerData {
+                layer_id: layer_id.clone(),
+                dignities,
+                decans,
+            });
+        }
+
+        Ok(western_layers)
     }
 
     /// Resolve layer contexts from request
