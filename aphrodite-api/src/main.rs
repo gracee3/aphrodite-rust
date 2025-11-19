@@ -44,7 +44,7 @@ async fn main() {
 
     tracing::info!("Server listening on {}", addr);
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap_or_else(|e| {
             eprintln!("Server error: {}", e);

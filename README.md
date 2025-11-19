@@ -302,7 +302,7 @@ The server will start on `http://localhost:8000` by default.
 
 Example API request:
 ```bash
-curl -X POST http://localhost:8000/api/render \
+curl -X POST http://localhost:8000/api/v1/render \
   -H "Content-Type: application/json" \
   -d '{
     "subjects": [{
