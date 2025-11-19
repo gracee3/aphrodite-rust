@@ -382,3 +382,19 @@ Western calculations work with both tropical and sidereal zodiac:
 - Dignities and decans are sign-based (work with any zodiac system)
 - Sign rulers support both traditional and modern rulerships
 
+## License
+
+This project is licensed under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later).
+
+See the [LICENSE](LICENSE) file for the full license text.
+
+### Swiss Ephemeris Licensing
+
+This project uses the `swisseph` crate, which provides Rust bindings to the **Swiss Ephemeris** library. The Swiss Ephemeris is available under a dual licensing system:
+
+1. **GNU Affero General Public License (AGPL)**: The Swiss Ephemeris can be used under the AGPL, which requires that any software incorporating it must also be distributed under the AGPL or a compatible license. This is compatible with this project's AGPL-3.0-or-later license.
+
+2. **Swiss Ephemeris Professional License**: For commercial use or if you prefer not to release your source code under the AGPL, you can purchase a professional license from Astrodienst. Information on obtaining this license is available at: [Swiss Ephemeris Professional License](https://www.astro.com/swisseph/swephprg.htm)
+
+Please ensure that your use of this project and the Swiss Ephemeris complies with the applicable licensing terms.
+
