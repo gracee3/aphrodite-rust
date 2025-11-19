@@ -30,5 +30,5 @@ lru = "0.12"
 [dev-dependencies]
 tokio-test = "0.4"
 tower = { version = "0.4", features = ["util"] }
-axum-test = "18.2"
+axum-test = "16.0"
 
