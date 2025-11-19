@@ -1,8 +1,7 @@
 use crate::aspects::types::AspectSet;
 use crate::ephemeris::types::LayerPositions;
 use crate::layout::rings::{
-    build_house_items, build_planet_items, build_static_zodiac_items, PlanetRingItem, RingItem,
-    SignRingItem,
+    build_house_items, build_planet_items, build_static_zodiac_items, RingItem,
 };
 use crate::layout::types::{RingDefinition, WheelDefinition};
 use std::collections::HashMap;
@@ -115,7 +114,7 @@ impl WheelAssembler {
                 // For now, leave items empty
             }
             crate::layout::types::RingDataSource::AspectSet { aspect_set_id, .. } => {
-                if let Some(aspect_set) = aspect_sets.get(aspect_set_id) {
+                if let Some(_aspect_set) = aspect_sets.get(aspect_set_id) {
                     // Build aspect items from aspect set
                     // This is a simplified version - full implementation would
                     // need to resolve planet positions and create aspect lines

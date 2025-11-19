@@ -1,5 +1,4 @@
-use crate::ephemeris::types::{HousePositions, LayerPositions, PlanetPosition};
-use crate::layout::types::RingDataSource;
+use crate::ephemeris::types::LayerPositions;
 use std::collections::HashMap;
 
 /// Sign names and glyphs
@@ -156,7 +155,7 @@ pub fn build_static_zodiac_items(slug: &str) -> Vec<SignRingItem> {
 /// Build house items from layer positions
 pub fn build_house_items(
     slug: &str,
-    layer_id: &str,
+    _layer_id: &str,
     positions: &LayerPositions,
 ) -> Vec<HouseRingItem> {
     let mut items = Vec::new();

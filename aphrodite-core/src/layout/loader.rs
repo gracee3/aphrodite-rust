@@ -1,6 +1,5 @@
 use crate::layout::types::WheelDefinitionWithPresets;
 use serde_json;
-use std::collections::HashMap;
 use thiserror::Error;
 
 /// Errors that can occur when loading wheel definitions

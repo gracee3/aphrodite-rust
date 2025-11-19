@@ -28,7 +28,7 @@ use std::sync::Mutex;
 
 /// Chart calculation service
 pub struct ChartService {
-    adapter: SwissEphemerisAdapter,
+    _adapter: SwissEphemerisAdapter,
     ephemeris_path: Option<PathBuf>,
     cache: Mutex<LruCache<String, EphemerisResponse>>,
     default_wheel_json: String,
@@ -38,7 +38,7 @@ impl ChartService {
     /// Create a new chart service
     pub fn new(ephemeris_path: Option<PathBuf>, cache_size: usize, default_wheel_json_path: Option<String>) -> Result<Self, ApiError> {
         let path_for_adapter = ephemeris_path.clone();
-        let mut adapter = SwissEphemerisAdapter::new(path_for_adapter)
+        let adapter = SwissEphemerisAdapter::new(path_for_adapter)
             .map_err(|e| ApiError::InternalError(format!("Failed to create adapter: {}", e)))?; // Keep manual conversion here as it's a creation error
         let cache = Mutex::new(LruCache::new(
             NonZeroUsize::new(cache_size.max(1)).unwrap()
@@ -56,7 +56,7 @@ impl ChartService {
         };
         
         Ok(Self { 
-            adapter,
+            _adapter: adapter,
             ephemeris_path,
             cache,
             default_wheel_json,
@@ -197,28 +197,28 @@ impl ChartService {
                     }
                 }
                 "orbSettings" => {
-                    if let Some(obj) = value.as_object() {
-                        if let Some(v) = obj.get("conjunction") {
+                    if let Some(_obj) = value.as_object() {
+                        if let Some(v) = _obj.get("conjunction") {
                             if let Some(f) = v.as_f64() {
                                 settings.orb_settings.conjunction = f;
                             }
                         }
-                        if let Some(v) = obj.get("opposition") {
+                        if let Some(v) = _obj.get("opposition") {
                             if let Some(f) = v.as_f64() {
                                 settings.orb_settings.opposition = f;
                             }
                         }
-                        if let Some(v) = obj.get("trine") {
+                        if let Some(v) = _obj.get("trine") {
                             if let Some(f) = v.as_f64() {
                                 settings.orb_settings.trine = f;
                             }
                         }
-                        if let Some(v) = obj.get("square") {
+                        if let Some(v) = _obj.get("square") {
                             if let Some(f) = v.as_f64() {
                                 settings.orb_settings.square = f;
                             }
                         }
-                        if let Some(v) = obj.get("sextile") {
+                        if let Some(v) = _obj.get("sextile") {
                             if let Some(f) = v.as_f64() {
                                 settings.orb_settings.sextile = f;
                             }
@@ -244,7 +244,7 @@ impl ChartService {
                 "vedicConfig" => {
                     if value.is_null() {
                         settings.vedic_config = None;
-                    } else if let Some(obj) = value.as_object() {
+                    } else if let Some(_obj) = value.as_object() {
                         // Deserialize vedic config from JSON value
                         match serde_json::from_value::<VedicConfig>(value.clone()) {
                             Ok(vedic_config) => {
@@ -397,7 +397,7 @@ impl ChartService {
         let ephemeris_response = self.get_positions(request).await?;
 
         // Get settings from request
-        let settings = &request.settings;
+        let _settings = &request.settings;
 
         // Convert to core types for aspect calculation
         let mut positions_by_layer = HashMap::new();
@@ -724,7 +724,7 @@ impl ChartService {
 }
 
 /// Parse datetime string to UTC
-fn parse_datetime(dt_str: &str, tz_str: Option<&str>) -> Result<DateTime<Utc>, ApiError> {
+fn parse_datetime(dt_str: &str, _tz_str: Option<&str>) -> Result<DateTime<Utc>, ApiError> {
     // Simple parser - in production, use a more robust date parser
     let dt = chrono::DateTime::parse_from_rfc3339(dt_str)
         .or_else(|_| {

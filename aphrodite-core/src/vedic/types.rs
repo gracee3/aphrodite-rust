@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::vedic::nakshatra::NakshatraPlacement;
 use crate::vedic::vargas::VargaLayer;
 use crate::vedic::yogas::Yoga;
-use crate::vedic::dashas::{DashaPeriod, VimshottariResponse};
+use crate::vedic::dashas::VimshottariResponse;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NakshatraLayer {

@@ -5,7 +5,7 @@
 use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
 use crate::ephemeris::types::LayerPositions;
-use crate::vedic::nakshatra::{get_nakshatra_for_longitude, normalize_degrees};
+use crate::vedic::nakshatra::get_nakshatra_for_longitude;
 
 pub const VIMSHOTTARI_TOTAL_YEARS: f64 = 120.0;
 pub const VIMSHOTTARI_YEAR_DAYS: f64 = 365.25; // Placeholder synodic year
@@ -243,7 +243,7 @@ pub fn compute_yogini_dasha(
 
 fn build_period_yogini(
     planet: &str,
-    yogini_name: &str,
+    _yogini_name: &str,
     start: DateTime<Utc>,
     duration_years: f64,
     level_index: usize,

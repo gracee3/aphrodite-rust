@@ -38,6 +38,7 @@ fn is_conjunction(lon1: f64, lon2: f64, orb: f64) -> bool {
 }
 
 /// Check if two planets are in opposition.
+#[allow(dead_code)]
 fn is_opposition(lon1: f64, lon2: f64, orb: f64) -> bool {
     let diff = angular_difference(lon1, lon2);
     (diff - 180.0).abs() <= orb

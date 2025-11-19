@@ -1,5 +1,5 @@
 use crate::aspects::types::{AspectCore, AspectPair, AspectObjectRef, AspectSet, AspectSettings};
-use crate::ephemeris::types::{LayerPositions, PlanetPosition};
+use crate::ephemeris::types::LayerPositions;
 use std::collections::HashMap;
 
 /// Aspect angles in order of frequency (most common first)

@@ -1,9 +1,9 @@
 use crate::aspects::types::AspectSet;
 use crate::layout::{AssembledRing, AssembledWheel};
 use crate::rendering::primitives::{
-    Color, LineStyle, Point, Shape, Stroke, TextAnchor,
+    Color, Point, Shape, Stroke,
 };
-use crate::rendering::spec::{AspectSetMetadata, ChartMetadata, ChartSpec, LayerMetadata};
+use crate::rendering::spec::{AspectSetMetadata, ChartMetadata, ChartSpec};
 use crate::rendering::visual_config::{GlyphConfig, VisualConfig};
 use crate::layout::rings::RingItem;
 
@@ -120,7 +120,7 @@ impl ChartSpecGenerator {
                         }),
                     });
                 }
-                RingItem::House(house_item) => {
+                RingItem::House(_house_item) => {
                     // House cusps are typically drawn as lines, not segments
                     // For now, we'll skip house cusp rendering in the generator
                     // This can be enhanced later
@@ -159,10 +159,10 @@ impl ChartSpecGenerator {
     fn generate_aspect_shapes(
         &self,
         aspect_set: &AspectSet,
-        center: Point,
-        max_radius: f32,
+        _center: Point,
+        _max_radius: f32,
     ) -> Vec<Shape> {
-        let mut shapes = Vec::new();
+        let shapes = Vec::new();
 
         // For aspect lines, we need to find the planet positions
         // This is a simplified version - full implementation would need
@@ -171,7 +171,7 @@ impl ChartSpecGenerator {
 
         for pair in &aspect_set.pairs {
             // Get aspect color
-            let aspect_color = self
+            let _aspect_color = self
                 .visual_config
                 .aspect_colors
                 .get(&pair.aspect.aspect_type)

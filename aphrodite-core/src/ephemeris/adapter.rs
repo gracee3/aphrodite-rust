@@ -77,11 +77,9 @@ const AYANAMSAS: &[(&str, i32)] = &[
     ("aryabhata_mean_sun", 11), // SIDM_ARYABHATA_MSUN
 ];
 
-const DEFAULT_AYANAMSA: i32 = 1; // SIDM_LAHIRI
-
 /// Swiss Ephemeris adapter implementation
 pub struct SwissEphemerisAdapter {
-    ephemeris_path: PathBuf,
+    _ephemeris_path: PathBuf,
     current_sidereal_mode: Option<i32>,
 }
 
@@ -105,12 +103,12 @@ impl SwissEphemerisAdapter {
         // Set ephemeris path
         // Note: Adjust based on actual swisseph crate API
         // Typical API: swisseph::set_ephe_path(path_str)
-        let path_str = path.to_string_lossy();
+        let _path_str = path.to_string_lossy();
         // This will need to be adjusted based on the actual crate API
         // For now, we'll assume the path is set correctly
 
         Ok(Self {
-            ephemeris_path: path,
+            _ephemeris_path: path,
             current_sidereal_mode: None,
         })
     }

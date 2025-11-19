@@ -1,6 +1,6 @@
 use aphrodite_core::rendering::ChartSpec;
-use aphrodite_core::vedic::{VedicPayload, NakshatraPlacement, VargaLayer, DashaPeriod, Yoga};
-use aphrodite_core::western::{DignityResult, DecanInfo, WesternLayerData};
+use aphrodite_core::vedic::VedicPayload;
+use aphrodite_core::western::WesternLayerData;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
