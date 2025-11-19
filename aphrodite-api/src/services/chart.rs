@@ -2,8 +2,9 @@ use crate::error::ApiError;
 use crate::schemas::request::{ChartSettings, LayerConfig, RenderRequest, Subject, VedicConfig};
 use crate::schemas::response::{
     EphemerisResponse, HousePositions, LayerPositions, LayerResponse, PlanetPosition,
-    VedicPayload, VedicLayerData, NakshatraLayer, WesternLayerData,
 };
+use aphrodite_core::vedic::{VedicPayload, VedicLayerData, NakshatraLayer};
+use aphrodite_core::western::WesternLayerData;
 use aphrodite_core::aspects::{AspectCalculator, AspectSettings};
 use aphrodite_core::ephemeris::{
     EphemerisSettings, GeoLocation, LayerContext, SwissEphemerisAdapter,
@@ -111,7 +112,7 @@ impl ChartService {
         for subject in &request.subjects {
             subject.id.hash(&mut hasher);
             if let Some(dt) = &subject.birth_date_time {
-                dt.to_rfc3339().hash(&mut hasher);
+                dt.hash(&mut hasher);
             }
             if let Some(loc) = &subject.location {
                 loc.lat.to_bits().hash(&mut hasher);
@@ -277,7 +278,7 @@ impl ChartService {
     ) -> Result<EphemerisResponse, ApiError> {
         // Merge settings
         let mut settings = request.settings.clone();
-        self.merge_settings_override(&mut settings, &request.settings_override)?;
+        ChartService::merge_settings_override(&mut settings, &request.settings_override)?;
 
         // Check cache
         let cache_key = self.generate_cache_key(request, &settings);
@@ -292,13 +293,13 @@ impl ChartService {
 
         // Calculate positions - wrap CPU-bound work in spawn_blocking
         // Create a temporary adapter in the blocking task to avoid moving &mut self.adapter
-        let layer_contexts_clone = layer_contexts.clone();
+        let layer_contexts_for_blocking = layer_contexts.clone();
         let ephemeris_path = self.ephemeris_path.clone();
         let positions_by_layer = tokio::task::spawn_blocking(move || {
-            let mut temp_adapter = SwissEphemerisAdapter::new(Some(ephemeris_path))
+            let mut temp_adapter = SwissEphemerisAdapter::new(ephemeris_path)
                 .map_err(|e| ApiError::InternalError(format!("Failed to create temp adapter: {}", e)))?; // Keep manual conversion here
             let mut positions_by_layer = HashMap::new();
-            for ctx in &layer_contexts_clone {
+            for ctx in &layer_contexts_for_blocking {
                 let positions = temp_adapter
                     .calc_positions(ctx.datetime, ctx.location.clone(), &ctx.settings)?; // Use From trait
                 positions_by_layer.insert(ctx.layer_id.clone(), positions);
@@ -310,6 +311,7 @@ impl ChartService {
 
         // Build response
         let mut layers_response = HashMap::new();
+        let layer_contexts_for_response = layer_contexts.clone();
         for ctx in layer_contexts {
             if let Some(positions) = positions_by_layer.get(&ctx.layer_id) {
                 let planets: HashMap<String, PlanetPosition> = positions
@@ -355,10 +357,11 @@ impl ChartService {
         }
 
         // Calculate Vedic data if requested
+        let layer_contexts_ref = &layer_contexts_for_response;
         let vedic = if let Some(vedic_config) = &settings.vedic_config {
             Some(self.calculate_vedic_data(
                 &positions_by_layer,
-                &layer_contexts,
+                layer_contexts_ref,
                 vedic_config,
             )?)
         } else {
@@ -585,7 +588,7 @@ impl ChartService {
     ) -> Result<HashMap<String, WesternLayerData>, ApiError> {
         let mut western_layers: HashMap<String, WesternLayerData> = HashMap::new();
         let dignities_service = DignitiesService;
-        let default_exact_exaltations = dignities_service.get_default_exact_exaltations();
+        let default_exact_exaltations = DignitiesService::get_default_exact_exaltations();
 
         for (layer_id, positions) in positions_by_layer {
             let mut dignities: HashMap<String, Vec<aphrodite_core::western::DignityResult>> = HashMap::new();
@@ -726,10 +729,11 @@ fn parse_datetime(dt_str: &str, tz_str: Option<&str>) -> Result<DateTime<Utc>, A
     let dt = chrono::DateTime::parse_from_rfc3339(dt_str)
         .or_else(|_| {
             // Try ISO 8601 format
-            dt_str.parse::<DateTime<Utc>>()
+            dt_str.parse::<DateTime<Utc>>().map(|dt| dt.with_timezone(&chrono::FixedOffset::east_opt(0).unwrap()))
         })
-        .map_err(|e| ApiError::ValidationError(format!("Failed to parse datetime '{}': {}", dt_str, e)))?;
+        .map_err(|e| ApiError::ValidationError(format!("Failed to parse datetime '{}': {}", dt_str, e)))?
+        .with_timezone(&Utc);
 
-    Ok(dt.with_timezone(&Utc))
+    Ok(dt)
 }
 

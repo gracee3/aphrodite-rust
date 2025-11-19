@@ -32,7 +32,12 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     tracing::info!("Starting Aphrodite API server on {}", addr);
 
+    tracing::info!("Server listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // In axum 0.7, Router should work directly - it implements IntoMakeService
+    // If this doesn't compile, we may need to check axum version or use a workaround
+    axum::serve(listener, app)
+        .await
+        .unwrap();
 }
 

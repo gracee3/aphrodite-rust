@@ -80,14 +80,13 @@ pub struct ApiInfoResponse {
     pub description: String,
 }
 
-// Re-export Vedic types for convenience
+// Re-export Vedic types for convenience (only types not already imported above)
 pub use aphrodite_core::vedic::{
-    VedicPayload, NakshatraPlacement, VargaLayer, DashaPeriod, Yoga,
     VedicLayerData, NakshatraLayer,
 };
 
-// Re-export Western types for convenience
+// Re-export Western types for convenience (only types not already imported above)
 pub use aphrodite_core::western::{
-    DignityResult, DignityType, ExactExaltation, DecanInfo, WesternLayerData,
+    DignityType, ExactExaltation,
 };
 

@@ -68,25 +68,25 @@ impl IntoResponse for ApiError {
 }
 
 /// Convert core library errors to API errors
-impl From<aphrodite_core::ephemeris::EphemerisError> for ApiError {
-    fn from(err: aphrodite_core::ephemeris::EphemerisError) -> Self {
+impl From<aphrodite_core::ephemeris::adapter::EphemerisError> for ApiError {
+    fn from(err: aphrodite_core::ephemeris::adapter::EphemerisError) -> Self {
         match err {
-            aphrodite_core::ephemeris::EphemerisError::FileNotFound { path, message } => {
+            aphrodite_core::ephemeris::adapter::EphemerisError::FileNotFound { path, message } => {
                 ApiError::InternalError(format!("Ephemeris file not found at {}: {}", path, message))
             }
-            aphrodite_core::ephemeris::EphemerisError::InvalidHouseSystem { system, valid } => {
+            aphrodite_core::ephemeris::adapter::EphemerisError::InvalidHouseSystem { system, valid } => {
                 ApiError::ValidationError(format!(
                     "Invalid house system: {}. Valid systems: {:?}",
                     system, valid
                 ))
             }
-            aphrodite_core::ephemeris::EphemerisError::InvalidAyanamsa { ayanamsa, valid } => {
+            aphrodite_core::ephemeris::adapter::EphemerisError::InvalidAyanamsa { ayanamsa, valid } => {
                 ApiError::ValidationError(format!(
                     "Invalid ayanamsa: {}. Valid ayanamsas: {:?}",
                     ayanamsa, valid
                 ))
             }
-            aphrodite_core::ephemeris::EphemerisError::CalculationFailed {
+            aphrodite_core::ephemeris::adapter::EphemerisError::CalculationFailed {
                 planet_id,
                 datetime,
                 message,
@@ -94,7 +94,7 @@ impl From<aphrodite_core::ephemeris::EphemerisError> for ApiError {
                 "Failed to calculate position for {} at {}: {}",
                 planet_id, datetime, message
             )),
-            aphrodite_core::ephemeris::EphemerisError::HouseCalculationFailed { message } => {
+            aphrodite_core::ephemeris::adapter::EphemerisError::HouseCalculationFailed { message } => {
                 ApiError::CalculationError(format!("House calculation failed: {}", message))
             }
         }

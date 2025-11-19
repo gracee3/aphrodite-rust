@@ -286,14 +286,16 @@ impl RequestValidator {
     /// Parse and validate datetime string
     fn parse_and_validate_datetime(dt_str: &str) -> Result<DateTime<Utc>, String> {
         let dt = chrono::DateTime::parse_from_rfc3339(dt_str)
-            .or_else(|_| dt_str.parse::<DateTime<Utc>>())
-            .map_err(|e| format!("Failed to parse datetime '{}': {}", dt_str, e))?;
+            .or_else(|_| dt_str.parse::<DateTime<Utc>>().map(|dt| dt.with_timezone(&chrono::FixedOffset::east_opt(0).unwrap())))
+            .map_err(|e| format!("Failed to parse datetime '{}': {}", dt_str, e))?
+            .with_timezone(&Utc);
 
-        Ok(dt.with_timezone(&Utc))
+        Ok(dt)
     }
 
     /// Validate date is within reasonable range
     fn validate_date_range(dt: DateTime<Utc>) -> Result<(), ApiError> {
+        use chrono::Datelike;
         let year = dt.year();
         if year < MIN_YEAR || year > MAX_YEAR {
             return Err(ApiError::ValidationError(format!(
