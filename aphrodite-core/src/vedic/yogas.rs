@@ -273,8 +273,6 @@ pub fn identify_yogas(layer_positions: &LayerPositions) -> Vec<Yoga> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ephemeris::types::{PlanetPosition, HousePositions};
-    use std::collections::HashMap;
     
     #[test]
     fn test_angular_difference() {
