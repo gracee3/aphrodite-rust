@@ -36,6 +36,20 @@
 - ✅ Performance benchmarks
 - ✅ Documentation (API, Rendering, Testing, Performance)
 
+### Phase 6: Full Jyotish (Vedic Astrology) ✅
+- ✅ Nakshatras module (27 lunar mansions with padas)
+- ✅ Vargas module (all 16 divisional charts D2-D60)
+- ✅ Dashas module (Vimshottari, Yogini, Ashtottari, Kalachakra)
+- ✅ Yogas module (classic Vedic planetary combinations)
+- ✅ Vedic types and integration
+
+### Phase 7: Dignities, Rulers, Decans ✅
+- ✅ Dignities module (rulership, detriment, exaltation, fall, exact exaltation)
+- ✅ Sign rulers module (traditional and modern rulerships)
+- ✅ Decans module (3 decans per sign with element-based rulers)
+- ✅ Western types and integration
+- ✅ API integration for Vedic and Western data
+
 ## Project Structure
 
 ```
@@ -45,13 +59,17 @@ aphrodite-rust/
 │   │   ├── ephemeris/      # Swiss Ephemeris adapter
 │   │   ├── aspects/        # Aspect calculations
 │   │   ├── layout/         # Wheel assembly & JSON loading
-│   │   └── rendering/      # ChartSpec generation
+│   │   ├── rendering/      # ChartSpec generation
+│   │   ├── vedic/          # Vedic astrology (nakshatras, vargas, dashas, yogas)
+│   │   └── western/        # Western astrology (dignities, rulers, decans)
 │   ├── tests/              # Unit tests
+│   │   ├── vedic/          # Vedic module tests
+│   │   └── western/       # Western module tests
 │   └── benches/           # Performance benchmarks
 ├── aphrodite-api/          # Axum HTTP server
 │   ├── src/
 │   │   ├── routes/         # API endpoints
-│   │   ├── services/       # Business logic
+│   │   ├── services/       # Business logic (includes Vedic/Western calculations)
 │   │   ├── schemas/        # Request/response types
 │   │   └── middleware/     # CORS, rate limiting, logging
 │   └── tests/              # Integration tests
@@ -97,6 +115,19 @@ aphrodite-rust/
    - WASM renderer with Canvas/SVG support
    - Web integration example
 
+7. **Vedic Astrology (Phase 6)**
+   - 27 nakshatras with padas (quarters)
+   - 16 varga divisional charts (D2-D60)
+   - 4 dasha systems (Vimshottari, Yogini, Ashtottari, Kalachakra)
+   - 10+ classic yogas detection
+   - Full integration with API responses
+
+8. **Western Astrology (Phase 7)**
+   - Dignities (rulership, detriment, exaltation, fall, exact exaltation)
+   - Sign rulers (traditional and modern)
+   - Decans (3 per sign with element-based rulers)
+   - Full integration with API responses
+
 ## Notes
 
 ### Swiss Ephemeris Crate
@@ -106,10 +137,21 @@ The implementation uses the `swisseph` crate. The exact API may vary by version,
 - Function signatures (calc_ut, houses_ex2, set_sid_mode, etc.)
 
 ### Vedic Calculations
-Vedic calculations (nakshatras, vargas, dashas, yogas) are deferred to Phase 6 as requested.
+All Vedic calculations are now implemented:
+- Nakshatras: 27 lunar mansions with padas, planetary lords
+- Vargas: All 16 divisional charts with special calculation methods
+- Dashas: Four dasha systems with recursive period calculation
+- Yogas: Classic Vedic planetary combination detection
+
+### Western Calculations
+All Western calculations are now implemented:
+- Dignities: Full rulership, detriment, exaltation, fall, exact exaltation
+- Sign Rulers: Traditional and modern rulerships
+- Decans: Three decans per sign with element-based rulers
 
 ### Testing
-- Unit tests are in place but some require Swiss Ephemeris files (marked with `#[ignore]`)
+- Unit tests are in place for all modules including Vedic and Western
+- Some tests require Swiss Ephemeris files (marked with `#[ignore]`)
 - Integration tests are placeholders that need proper test client setup
 - Benchmarks are configured but require Swiss Ephemeris files to run
 
@@ -119,7 +161,7 @@ Vedic calculations (nakshatras, vargas, dashas, yogas) are deferred to Phase 6 a
 3. Complete Slint renderer UI implementation
 4. Enhance WASM renderer with full shape support
 5. Add comprehensive integration tests
-6. Phase 6: Vedic calculations
+6. Production deployment and optimization
 
 ## Running the Server
 
