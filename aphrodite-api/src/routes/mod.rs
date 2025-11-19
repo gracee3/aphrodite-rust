@@ -16,8 +16,8 @@ pub struct AppState {
     pub service_pool: Arc<ChartServicePool>,
 }
 
-/// Create the main router
-pub fn create_router() -> Router<AppState> {
+/// Create the main router with all required state
+pub fn create_router() -> Router {
     // Initialize service pool
     let config = crate::config::Config::from_env();
     let service_pool = ChartServicePool::new(
