@@ -1,6 +1,9 @@
 # Implementation Status
 
-## Completed Phases
+> [!WARNING]
+> **Historical, unvalidated status record.** This document records claims made during the November 2025 prototype. The repository was not accepted as a release, may not compile against current dependencies, and contains placeholder or incomplete components. Reviewed successor work lives in [Astraeus](https://github.com/gracee3/astraeus).
+
+## Historically Marked Phases
 
 ### Phase 1: Core Computation Engine ✅
 - ✅ Project structure setup
