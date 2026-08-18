@@ -1,10 +1,13 @@
 # Aphrodite Rust - Core Engine
 
+> [!IMPORTANT]
+> **Archived legacy prototype.** This repository is retained as the November 2025 provenance record for [Astraeus](https://github.com/gracee3/astraeus). It is not release-ready, is not supported, and may not compile against current dependencies. The historical phase-completion claims below describe intended or scaffolded scope, not a validated release. New development and reviewed imports belong in Astraeus.
+
 This is the Rust implementation of the Gaia Tools astrology platform core engine, migrated from Python/TypeScript.
 
-## Status
+## Historical implementation claims
 
-All phases are complete:
+At the time of this prototype, the following phases were marked complete. These markings were not backed by a verified release-acceptance run and should not be read as current guarantees:
 - ✅ Phase 1: Core Computation Engine (Ephemeris, Aspects)
 - ✅ Phase 2: Layout & ChartSpec Generation
 - ✅ Phase 3: Axum API Server
